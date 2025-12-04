@@ -147,10 +147,11 @@ def create_epub(title: str, body_content: str, source_url: str = "") -> bytes:
     book.add_item(chapter)
 
     # Table of contents and spine
+    # Note: Don't include 'nav' in spine - causes crashes on some Kindle devices
     book.toc = (chapter,)
     book.add_item(epub.EpubNcx())
     book.add_item(epub.EpubNav())
-    book.spine = ['nav', chapter]
+    book.spine = [chapter]
 
     # Write to BytesIO and return bytes
     output = BytesIO()
