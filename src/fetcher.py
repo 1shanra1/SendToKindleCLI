@@ -1,5 +1,4 @@
 import requests
-from bs4 import BeautifulSoup
 from ebooklib import epub
 from io import BytesIO
 import uuid
@@ -7,105 +6,116 @@ import re
 import html
 
 
-def fetch_article(url: str) -> str:
+def extract_title_from_url(url: str) -> str:
     """
-    Fetches the Wikipedia article content from the given URL.
+    Extracts the article title from a Wikipedia URL.
+    e.g., 'https://en.wikipedia.org/wiki/HAL_Tejas' -> 'HAL_Tejas'
     """
+    # Handle both /wiki/Title and /w/index.php?title=Title formats
+    if '/wiki/' in url:
+        return url.split('/wiki/')[-1].split('#')[0].split('?')[0]
+    elif 'title=' in url:
+        match = re.search(r'title=([^&]+)', url)
+        if match:
+            return match.group(1)
+    raise ValueError(f"Could not extract article title from URL: {url}")
+
+
+def fetch_article(url: str) -> dict:
+    """
+    Fetches Wikipedia article content using the Action API.
+    Returns a dict with 'title' and 'content' (plain text with wiki markup for sections).
+    """
+    title = extract_title_from_url(url)
+
+    # Use Wikipedia's Action API to get clean extract
+    api_url = "https://en.wikipedia.org/w/api.php"
+    params = {
+        'action': 'query',
+        'prop': 'extracts',
+        'titles': title,
+        'format': 'json',
+        'explaintext': '1',  # Plain text, no HTML
+        'exsectionformat': 'wiki',  # Keep section markers
+    }
+
+    headers = {
+        'User-Agent': 'KindleWikipediaCLI/0.1.0 (https://github.com/kindle-wikipedia-cli)'
+    }
+
     try:
-        headers = {
-            'User-Agent': 'KindleWikipediaCLI/0.1.0 (https://github.com/yourusername/kindle-wikipedia-cli; ishanrai@example.com)'
-        }
-        response = requests.get(url, headers=headers)
+        response = requests.get(api_url, params=params, headers=headers)
         response.raise_for_status()
-        return response.text
+        data = response.json()
+
+        pages = data.get('query', {}).get('pages', {})
+        if not pages:
+            raise RuntimeError("No pages returned from API")
+
+        # Get the first (and only) page
+        page = next(iter(pages.values()))
+
+        if 'missing' in page:
+            raise RuntimeError(f"Article not found: {title}")
+
+        return {
+            'title': page.get('title', title.replace('_', ' ')),
+            'content': page.get('extract', '')
+        }
+
     except requests.RequestException as e:
-        raise RuntimeError(f"Failed to fetch URL {url}: {e}")
+        raise RuntimeError(f"Failed to fetch article: {e}")
 
 
-def get_title(html_content: str) -> str:
+def get_title(article_data: dict) -> str:
     """
-    Extracts the article title from HTML.
+    Returns the article title from the fetched data.
     """
-    soup = BeautifulSoup(html_content, 'html.parser')
-    title_tag = soup.find('title')
-    if title_tag:
-        return title_tag.get_text().replace(' - Wikipedia', '')
+    if isinstance(article_data, dict):
+        return article_data.get('title', 'Wikipedia Article')
+    # Fallback for backwards compatibility
     return "Wikipedia Article"
 
 
-def clean_content(html_content: str) -> str:
+def clean_content(article_data: dict) -> str:
     """
-    Cleans Wikipedia HTML and returns XHTML-compliant body content for EPUB.
-    Returns only the inner content (no html/body wrapper).
+    Converts Wikipedia plain text extract to EPUB-compatible HTML.
+    Handles section headers (== Title ==) and paragraphs.
     """
-    soup = BeautifulSoup(html_content, 'html.parser')
+    if isinstance(article_data, dict):
+        content = article_data.get('content', '')
+    else:
+        content = str(article_data)
 
-    # Find the main content area
-    content = soup.find('div', {'id': 'mw-content-text'})
     if not content:
-        content = soup.find('body')
-    if not content:
-        raise RuntimeError("Could not find content in the page.")
-
-    # Aggressively remove unwanted elements
-    selectors_to_remove = [
-        # Wikipedia UI elements
-        '.mw-editsection', '.reference', '.noprint', '#mw-navigation',
-        '#footer', '.mw-jump-link', '.infobox', '.reflist', '.navbox',
-        '.sidebar', '.sistersitebox', '.portalbox', '.metadata', '.hatnote',
-        '.toc', '.catlinks', '.printfooter', '.mw-authority-control',
-        '.ambox', '.mbox', '.mw-empty-elt', '.thumb', '.gallery',
-        '.wikitable',
-        # Media elements
-        'script', 'style', 'link', 'meta', 'img', 'figure', 'figcaption',
-        'video', 'audio', 'iframe', 'object', 'embed', 'canvas', 'svg',
-        'map', 'area', 'noscript', 'picture', 'source',
-        # Form elements
-        'input', 'button', 'select', 'textarea', 'form',
-    ]
-
-    for selector in selectors_to_remove:
-        for element in content.select(selector):
-            element.decompose()
-
-    # Convert links to plain text (unwrap keeps the text content)
-    for a in content.find_all('a'):
-        a.unwrap()
-
-    # Allowed semantic tags for EPUB
-    allowed_tags = {
-        'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-        'br', 'hr',
-        'ul', 'ol', 'li',
-        'blockquote',
-        'b', 'strong', 'i', 'em', 'u', 'sub', 'sup',
-        'dl', 'dt', 'dd',
-    }
-
-    # Unwrap disallowed tags (keeps their text content)
-    for tag in content.find_all(True):
-        if tag.name not in allowed_tags:
-            tag.unwrap()
-
-    # Strip ALL attributes from remaining tags
-    for tag in content.find_all(True):
-        tag.attrs = {}
-
-    # Extract text content and rebuild as clean paragraphs
-    # This avoids XML parsing issues from malformed HTML
-    paragraphs = []
-    for element in content.find_all(['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li', 'blockquote']):
-        text = element.get_text(separator=' ', strip=True)
-        if text:
-            tag_name = element.name
-            # Escape any special XML characters in the text
-            escaped_text = html.escape(text)
-            paragraphs.append(f'<{tag_name}>{escaped_text}</{tag_name}>')
-
-    if not paragraphs:
         return "<p>No content found.</p>"
 
-    return '\n'.join(paragraphs)
+    lines = content.split('\n')
+    html_parts = []
+
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+
+        # Check for section headers (== Title ==, === Title ===, etc.)
+        header_match = re.match(r'^(={2,6})\s*(.+?)\s*\1$', line)
+        if header_match:
+            level = len(header_match.group(1))
+            title = header_match.group(2)
+            # Map == to h2, === to h3, etc.
+            h_level = min(level, 6)
+            escaped_title = html.escape(title)
+            html_parts.append(f'<h{h_level}>{escaped_title}</h{h_level}>')
+        else:
+            # Regular paragraph
+            escaped_text = html.escape(line)
+            html_parts.append(f'<p>{escaped_text}</p>')
+
+    if not html_parts:
+        return "<p>No content found.</p>"
+
+    return '\n'.join(html_parts)
 
 
 def create_epub(title: str, body_content: str, source_url: str = "") -> bytes:

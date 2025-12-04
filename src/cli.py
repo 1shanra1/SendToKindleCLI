@@ -30,18 +30,18 @@ def main(urls: str = typer.Argument(..., help="Comma-separated list of Wikipedia
         for url in url_list:
             task_id = progress.add_task(description=f"Processing {url}...", total=None)
             try:
-                # Fetch
+                # Fetch from Wikipedia API
                 progress.update(task_id, description=f"Fetching {url}...")
-                raw_html = fetch_article(url)
+                article_data = fetch_article(url)
 
-                # Parse Title
-                title = get_title(raw_html)
+                # Get title
+                title = get_title(article_data)
                 safe_title = "".join(c for c in title if c.isalnum() or c in (' ', '-', '_')).strip()
                 filename = f"{safe_title}.epub"
 
-                # Clean
-                progress.update(task_id, description=f"Cleaning '{title}'...")
-                body_content = clean_content(raw_html)
+                # Convert to HTML
+                progress.update(task_id, description=f"Processing '{title}'...")
+                body_content = clean_content(article_data)
                 
                 # Create EPUB
                 progress.update(task_id, description=f"Creating EPUB for '{title}'...")

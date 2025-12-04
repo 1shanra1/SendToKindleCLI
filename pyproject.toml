@@ -19,7 +19,6 @@ classifiers = [
 dependencies = [
     "typer[all]",
     "requests",
-    "beautifulsoup4",
     "python-dotenv",
     "rich",
     "EbookLib",
