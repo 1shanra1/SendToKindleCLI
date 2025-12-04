@@ -39,13 +39,21 @@ def main(urls: str = typer.Argument(..., help="Comma-separated list of Wikipedia
                 safe_title = "".join(c for c in title if c.isalnum() or c in (' ', '-', '_')).strip()
                 filename = f"{safe_title}.epub"
 
-                # Convert to HTML
+                # Convert to HTML (with section image references)
                 progress.update(task_id, description=f"Processing '{title}'...")
-                body_content = clean_content(article_data)
-                
-                # Create EPUB
+                section_images = article_data.get('section_images', {})
+                body_content, image_refs = clean_content(article_data, section_images)
+
+                # Create EPUB (with lead image and section images)
                 progress.update(task_id, description=f"Creating EPUB for '{title}'...")
-                epub_bytes = create_epub(title, body_content, source_url=url)
+                epub_bytes = create_epub(
+                    title,
+                    body_content,
+                    source_url=url,
+                    image_data=article_data.get('image'),
+                    image_filename=article_data.get('image_filename'),
+                    image_refs=image_refs
+                )
 
                 # Send
                 progress.update(task_id, description=f"Sending '{title}' to Kindle...")
