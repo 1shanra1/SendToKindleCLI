@@ -1,70 +1,53 @@
 # Kindle Wikipedia CLI
 
-A simple CLI tool to send Wikipedia articles directly to your Kindle.
+Send Wikipedia articles to your Kindle with a single command.
 
 ## Features
 
-*   **Simple**: Send articles with a single command from anywhere.
-*   **Clean**: Strips clutter (sidebars, footers) for a perfect reading experience.
-*   **Secure**: Uses your own email credentials stored locally.
+- **EPUB format** with images throughout the article
+- **Clean content** via Wikipedia's API (no clutter)
+- **Works from anywhere** after setup
 
 ## Prerequisites
 
-*   Python 3.8+
-*   `pipx` (Recommended for installing CLI tools)
-*   An email account with SMTP access (e.g., Gmail with App Password).
-*   **Crucial**: Add your sender email to your [Approved Personal Document E-mail List](https://www.amazon.com/gp/help/customer/display.html?nodeId=GX9XLEVV8G4DB28H) on Amazon.
+- Python 3.8+ and `pipx`
+- Email with SMTP access (e.g., Gmail with [App Password](https://support.google.com/accounts/answer/185833))
+- Sender email added to your [Amazon Approved Senders List](https://www.amazon.com/gp/help/customer/display.html?nodeId=GX9XLEVV8G4DB28H)
 
 ## Installation
 
-We recommend using `pipx` to install the tool globally in an isolated environment.
-
-1.  **Clone the repository:**
-    ```bash
-    git clone https://github.com/yourusername/kindle-wikipedia-cli.git
-    cd kindle-wikipedia-cli
-    ```
-
-2.  **Install:**
-    ```bash
-    pipx install .
-    ```
+```bash
+git clone https://github.com/yourusername/kindle-wikipedia-cli.git
+cd kindle-wikipedia-cli
+pipx install .
+```
 
 ## Configuration
 
-To use the tool from anywhere, create a configuration file in your home directory.
+```bash
+cp .env.example ~/.kindle-wikipedia-cli.env
+```
 
-1.  **Create the config file:**
-    ```bash
-    cp .env.example ~/.kindle-wikipedia-cli.env
-    ```
-
-2.  **Edit `~/.kindle-wikipedia-cli.env`** with your details:
-    *   `SMTP_HOST`: e.g., `smtp.gmail.com`
-    *   `SMTP_PORT`: `587`
-    *   `SMTP_USER`: Your email address.
-    *   `SMTP_PASSWORD`: Your email password (or App Password).
-    *   `KINDLE_EMAIL`: Your Send-to-Kindle email address.
+Edit `~/.kindle-wikipedia-cli.env`:
+```
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=you@gmail.com
+SMTP_PASSWORD=your-app-password
+KINDLE_EMAIL=you@kindle.com
+```
 
 ## Usage
 
-Run the command from any terminal window:
-
 ```bash
-send-to-kindle https://en.wikipedia.org/wiki/Python_(programming_language)
-```
+send-to-kindle https://en.wikipedia.org/wiki/HAL_Tejas
 
-**Multiple URLs:**
-```bash
+# Multiple articles
 send-to-kindle url1,url2,url3
 ```
 
 ## Development
 
-To set up a local development environment:
-
 ```bash
-python3 -m venv venv
-source venv/bin/activate
-pip install -e .
+python3 -m venv venv && source venv/bin/activate && pip install -e .
 ```
