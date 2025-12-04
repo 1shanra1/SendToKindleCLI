@@ -1,21 +1,21 @@
 import smtplib
 from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
 from email.mime.application import MIMEApplication
 from .config import Config
 
-def send_email(subject: str, file_content: str, filename: str):
+
+def send_email(subject: str, file_content: bytes, filename: str):
     """
-    Sends an email with the HTML content as an attachment to the Kindle email address.
+    Sends an email with the file content as an attachment to the Kindle email address.
     """
     msg = MIMEMultipart()
     msg['From'] = Config.SMTP_USER
     msg['To'] = Config.KINDLE_EMAIL
     msg['Subject'] = subject
 
-    # Kindle needs an attachment to convert. 
-    # We attach the HTML file.
-    attachment = MIMEApplication(file_content.encode('utf-8'), _subtype="html")
+    # Kindle needs an attachment to convert.
+    # We attach the EPUB file.
+    attachment = MIMEApplication(file_content, _subtype="epub+zip")
     attachment.add_header('Content-Disposition', 'attachment', filename=filename)
     msg.attach(attachment)
 
