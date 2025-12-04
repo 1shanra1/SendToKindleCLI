@@ -5,8 +5,8 @@ Send Wikipedia articles to your Kindle with a single command.
 ## Features
 
 - **EPUB format** with images throughout the article
-- **Clean content** via Wikipedia's API (no clutter)
-- **Works from anywhere** after setup
+- **Clean content** via Wikipedia's API
+- **Works via terminal** after setup
 
 ## Prerequisites
 
